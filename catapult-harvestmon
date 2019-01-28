@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# the PORT where catapult-harvestmon will be running
+if [ -z "$PORT" ]; then
+	# set default harvestmon PORT to 3111
+	PORT=3111
+fi
+
+# for catapult beta endpoint, use http://api.beta.mijin.io:3000/diagnostic/storage
+# use first arg as `API_ENDPOINT` if API_ENDPOINT env var is unset.
+if [ -z "$API_ENDPOINT" ]; then
+	eval "export API_ENDPOINT=$1"
+fi
+
+if [ -z "$API_ENDPOINT" ]; then
+	echo "catapult-harvestmon -- monitor if catapult endpoint is still harvesting"
+	echo "usage: PORT=<harvestmon port (optional)> catapult-harvestmon <api_endpoint>"
+	echo "example: catapult-harvestmon http://api.beta.catapult.mijin.io:3000/diagnostic/storage"
+	exit
+fi
+
+echo "catapult-harvestmon is listening at http://localhost:${PORT}"
+
+# verify dependencies
+check_height_command=harvestmon_check_height
+harvestmon_check_height socat 2>/dev/null || { MISSING_DEPS="$MISSING_DEPS harvestmon_check_height"; }
+if [ ! -z "$MISSING_DEPS" ]; then
+	# use check height script from same directory if exists
+	if [ -f "$(pwd)/harvestmon_check_height" ]; then
+		check_height_command=$(pwd)/harvestmon_check_height
+	else
+	    echo "whoops! missing dependencies:"
+	    echo $MISSING_DEPS
+	    exit
+	fi
+fi
+
+socat -v -d \
+    TCP-LISTEN:${PORT},crlf,reuseaddr,fork \
+    EXEC:${check_height_command}

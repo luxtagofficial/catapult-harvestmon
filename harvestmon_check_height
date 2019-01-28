@@ -1,0 +1,59 @@
+#!/bin/sh
+
+# return comma separated value of 'ok' and 'msg'.
+mon_file=/tmp/catapult-harvestmon.txt
+
+# create file to store latest height
+create_mon_file() {
+  resp=$(curl -sS ${API_ENDPOINT})
+
+  # exit if endpoint is not reachable
+  if [ -z "$resp" ]; then
+    echo "curl command failed. is the endpoint (${API_ENDPOINT}) reachable?"
+    return
+  fi
+  echo $resp > $mon_file
+}
+
+harvestmon_check_height() {
+  if [ -z "$API_ENDPOINT" ]; then
+    echo "error: API_ENDPOINT env var is not set."
+    return
+  fi
+
+  # initiate mon file
+  if [ ! -f "$mon_file" ]; then
+    create_mon_file
+    current_height=$(curl -sS ${API_ENDPOINT} | jq .numBlocks)
+    printf '{"ok":true,"msg":"catapult-harvestmon initiated. current block height: %s"}' $current_height
+    return
+  fi
+
+  last_height=$(cat $mon_file | jq .numBlocks)
+
+  resp=$(curl -sS ${API_ENDPOINT})
+  current_height=$(echo $resp | jq .numBlocks)
+
+  # handle node not running
+  if [ -z "$current_height" ]; then
+    echo '{"ok":false,"msg":"empty response from endpoint. is the node reachable?"}'
+    return
+  fi
+
+  if [ "$current_height" = "$last_height" ]; then
+    printf '{"ok":false,"msg":"block height did not increment from %s. is the node still harvesting?"}' $last_height
+  elif [ "$current_height" -lt "$last_height" ]; then
+    printf '{"ok":false,"msg":"block height decremented from %s to %s. was the node re-initiated?"}' $last_height $current_height
+  else
+    printf '{"ok":true,"msg":"block height incremented from %s to %s"}' $last_height $current_height
+
+    # update mon file
+    echo $resp > $mon_file
+    last_height=$current_height
+  fi
+}
+
+echo HTTP/1.1 200 OK;
+echo Content-Type\: text/plain;
+echo;
+echo $(harvestmon_check_height);

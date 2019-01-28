@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# this file is used for testing purpose (mocking catapult diagnostic enpdoint)
+
+mockJsonResponse=$(mktemp)
+echo \
+'HTTP/1.1 200 OK
+Content-Type\: application/json
+
+{"numBlocks":1738760,"numTransactions":142662,"numAccounts":2674}' \
+> $mockJsonResponse
+
+PORT=3000
+echo "catapult mock for block height api is running at localhost:${PORT}"
+
+socat -v -d \
+    TCP-LISTEN:${PORT},crlf,reuseaddr,fork \
+    SYSTEM:"
+        cat $mockJsonResponse;
+    "
