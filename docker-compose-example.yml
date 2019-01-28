@@ -1,0 +1,25 @@
+version: "2"
+
+# this docker-compose served as an example of deploying catapult endpoint
+# together with catapult-harvestmon to monitor its "harvesting" status.
+# accessing `localhost:10000` from docker host will trigger
+# catapult-harvestmon to check harvesting status of endpoint
+# specified in its command (https://my-catapult-endpoint:3000/diagnostic/storage)
+#
+
+services:
+  catapult:
+    image: my-catapult-image
+    ports:
+      - my-catapult-endpoint:3000:3000
+
+  catapult-harvestmon:
+    image: luxtagofficial/catapult-harvestmon
+    command: https://my-catapult-endpoint:3000/diagnostic/storage
+    # adjust memory limit accordingly
+    mem_limit: 20m
+    restart: always
+    expose:
+      - 3111
+    ports:
+      - 127.0.0.1:10000:3111
