@@ -55,5 +55,8 @@ harvestmon_check_height() {
 
 echo HTTP/1.1 200 OK;
 echo Content-Type\: text/plain;
+echo Cache-Control: no-cache, no-store, must-revalidate;
+echo Pragma: no-cache;
+echo Expires: 0;
 echo;
 echo $(harvestmon_check_height);
